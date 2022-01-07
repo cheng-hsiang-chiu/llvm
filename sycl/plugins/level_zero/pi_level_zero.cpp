@@ -1531,11 +1531,15 @@ uint32_t _pi_queue::pi_queue_group_t::getQueueIndex(uint32_t *QueueGroupOrdinal,
   return CurrentIndex;
 }
 
+bool _pi_queue::isEagerExec() {
+  return false;
+  // (this->PiQueueProperties & (1<<5)) == 0)
+}
+
 // This function will return one of possibly multiple available native
 // queues and the value of the queue group ordinal.
 ze_command_queue_handle_t &
 _pi_queue::pi_queue_group_t::getZeQueue(uint32_t *QueueGroupOrdinal) {
-
   // QueueIndex is the proper L0 index.
   // Index is the plugins concept of index, with main and link copy engines in
   // one range.
@@ -4930,7 +4934,7 @@ pi_result piKernelRelease(pi_kernel Kernel) {
 }
 
 pi_result
-piEnqueueKernelLaunch(pi_queue Queue, pi_kernel Kernel, pi_uint32 WorkDim,
+piEnqueueKernel(pi_queue Queue, pi_kernel Kernel, pi_uint32 WorkDim,
                       const size_t *GlobalWorkOffset,
                       const size_t *GlobalWorkSize, const size_t *LocalWorkSize,
                       pi_uint32 NumEventsInWaitList,
@@ -5099,12 +5103,50 @@ piEnqueueKernelLaunch(pi_queue Queue, pi_kernel Kernel, pi_uint32 WorkDim,
           pi_cast<std::uintptr_t>(ZeEvent));
   printZeEventList((*Event)->WaitList);
 
+#if 0
   // Execute command list asynchronously, as the event will be used
   // to track down its completion.
   if (auto Res = Queue->executeCommandList(CommandList, false, true))
     return Res;
+#endif
 
   return PI_SUCCESS;
+}
+
+pi_result
+piKernelLaunch(pi_queue Queue) {
+    
+    //TODO: Make sure (re-)execute specific command list.
+
+    // Get a new command list to be used on this call
+      pi_command_list_ptr_t CommandList{};
+      if (auto Res = Queue->Context->getAvailableCommandList(
+              Queue, CommandList, false /* PreferCopyEngine */,
+              true /* AllowBatching */))
+        return Res;
+    
+    // Execute command list asynchronously, as the event will be used
+    // to track down its completion.
+    if (auto Res = Queue->executeCommandList(CommandList, false, true))
+      return Res;
+
+    return PI_SUCCESS;
+}
+
+pi_result
+piEnqueueKernelLaunch(pi_queue Queue, pi_kernel Kernel, pi_uint32 WorkDim,
+                      const size_t *GlobalWorkOffset,
+                      const size_t *GlobalWorkSize, const size_t *LocalWorkSize,
+                      pi_uint32 NumEventsInWaitList,
+                      const pi_event *EventWaitList, pi_event *Event) {
+    auto Res =
+    piEnqueueKernel(Queue,Kernel,WorkDim,GlobalWorkOffset,GlobalWorkSize,LocalWorkSize,NumEventsInWaitList,EventWaitList,Event);
+#if 0
+    if(Res == PI_SUCCESS && Queue->isEagerExec()) {
+        return piLazyKernelLaunch(Queue);
+    }
+#endif
+    return Res;
 }
 
 pi_result piextKernelCreateWithNativeHandle(pi_native_handle NativeHandle,
