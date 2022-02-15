@@ -636,6 +636,10 @@ struct _pi_context : _pi_object {
   std::unordered_map<ze_device_handle_t, std::list<ze_command_list_handle_t>>
       ZeCopyCommandListCache;
 
+  // Single command list for graph api
+
+  std::list<ze_command_list_handle_t> ZeGraphCommandList;
+
   // Retrieves a command list for executing on this device along with
   // a fence to be used in tracking the execution of this command list.
   // If a command list has been created on this device which has
@@ -656,7 +660,8 @@ struct _pi_context : _pi_object {
   pi_result getAvailableCommandList(pi_queue Queue,
                                     pi_command_list_ptr_t &CommandList,
                                     bool UseCopyEngine = false,
-                                    bool AllowBatching = false);
+                                    bool AllowBatching = false,
+                                    bool Graph = false);
 
   // Get index of the free slot in the available pool. If there is no available
   // pool then create new one. The HostVisible parameter tells if we need a
@@ -872,7 +877,7 @@ struct _pi_queue : _pi_object {
   // Returns true if the queue is a in-order queue.
   bool isInOrderQueue() const;
 
-  bool isEagerExec();
+  bool isEagerExec() const;
 
   // adjust the queue's batch size, knowing that the current command list
   // is being closed with a full batch.
@@ -914,7 +919,7 @@ struct _pi_queue : _pi_object {
   // For immediate commandlists, no close and execute is necessary.
   pi_result executeCommandList(pi_command_list_ptr_t CommandList,
                                bool IsBlocking = false,
-                               bool OKToBatchCommand = false);
+                               bool OKToBatchCommand = false, bool Graph = false);
 
   // If there is an open command list associated with this queue,
   // close it, execute it, and reset the corresponding OpenCommandList.
