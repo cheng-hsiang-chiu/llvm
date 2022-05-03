@@ -3270,10 +3270,11 @@ pi_result piQueueCreate(pi_context Context, pi_device Device,
                         pi_queue_properties Properties, pi_queue *Queue) {
 
   // Check that unexpected bits are not set.
-  PI_ASSERT(!(Properties & ~(PI_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE |
-                             PI_QUEUE_PROFILING_ENABLE | PI_QUEUE_ON_DEVICE |
-                             PI_QUEUE_ON_DEVICE_DEFAULT)),
-            PI_INVALID_VALUE);
+  PI_ASSERT(
+      !(Properties & ~(PI_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE |
+                       PI_QUEUE_PROFILING_ENABLE | PI_QUEUE_ON_DEVICE |
+                       PI_QUEUE_ON_DEVICE_DEFAULT | PI_QUEUE_LAZY_EXECUTION)),
+      PI_INVALID_VALUE);
 
   PI_ASSERT(Context, PI_INVALID_CONTEXT);
   PI_ASSERT(Queue, PI_INVALID_QUEUE);
