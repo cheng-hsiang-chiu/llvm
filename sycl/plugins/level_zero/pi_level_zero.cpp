@@ -874,7 +874,7 @@ bool _pi_queue::isInOrderQueue() const {
 
 bool _pi_queue::isEagerExec() const {
   // If lazy exec queue property is not set, then it's an eager queue.
-  return ((this->PiQueueProperties & (1<<11) ) == 0);
+  return ((this->Properties & (1<<11) ) == 0);
 }
 
 pi_result _pi_queue::resetCommandList(pi_command_list_ptr_t CommandList,
@@ -1358,16 +1358,8 @@ void _pi_queue::CaptureIndirectAccesses() {
 
 pi_result _pi_queue::executeCommandList(pi_command_list_ptr_t CommandList,
                                         bool IsBlocking,
-<<<<<<< HEAD
-                                        bool OKToBatchCommand) {
-  bool UseCopyEngine = CommandList->second.isCopy(this);
-=======
                                         bool OKToBatchCommand, bool Graph) {
-  int Index = CommandList->second.CopyQueueIndex;
-  bool UseCopyEngine = (Index != -1);
-  if (UseCopyEngine)
-    zePrint("Command list to be executed on copy engine %d\n", Index);
->>>>>>> aee48a541b75... Adding lazy execution property to queue
+  bool UseCopyEngine = CommandList->second.isCopy(this);
 
   // If the current LastCommandEvent is the nullptr, then it means
   // either that no command has ever been issued to the queue
@@ -1456,7 +1448,6 @@ pi_result _pi_queue::executeCommandList(pi_command_list_ptr_t CommandList,
       if (Res)
         return Res;
 
-<<<<<<< HEAD
       // Update each command's event in the command-list to "see" this
       // proxy event as a host-visible counterpart.
       for (auto &Event : CommandList->second.EventList) {
@@ -1499,49 +1490,6 @@ pi_result _pi_queue::executeCommandList(pi_command_list_ptr_t CommandList,
         return PI_COMMAND_EXECUTION_FAILURE;
       }
       return mapError(ZeResult);
-=======
-    // Update each command's event in the command-list to "see" this
-    // proxy event as a host-visible counterpart.
-    for (auto &Event : CommandList->second.EventList) {
-      Event->HostVisibleEvent = HostVisibleEvent;
-      PI_CALL(piEventRetain(HostVisibleEvent));
-    }
-
-    // Decrement the reference count of the event such that all the remaining
-    // references are from the other commands in this batch. This host-visible
-    // event will not be waited/release by SYCL RT, so it must be destroyed
-    // after all events in the batch are gone.
-    PI_CALL(piEventRelease(HostVisibleEvent));
-    PI_CALL(piEventRelease(HostVisibleEvent));
-    PI_CALL(piEventRelease(HostVisibleEvent));
-
-    // Indicate no cleanup is needed for this PI event as it is special.
-    HostVisibleEvent->CleanedUp = true;
-
-    // Finally set to signal the host-visible event at the end of the
-    // command-list.
-    // TODO: see if we need a barrier here (or explicit wait for all events in
-    // the batch).
-    ZE_CALL(zeCommandListAppendSignalEvent,
-            (CommandList->first, HostVisibleEvent->ZeEvent));
-  }
-
-  // Close the command list and have it ready for dispatch.
-  // TODO: Close command list only once before initial execution, but works as is.
-  //if(!Graph)
-  ZE_CALL(zeCommandListClose, (CommandList->first));
-  // Offload command list to the GPU for asynchronous execution
-  auto ZeCommandList = CommandList->first;
-  zePrint("Calling zeCommandQueueExecuteCommandLists with Index = %d\n", Index);
-  auto ZeResult = ZE_CALL_NOCHECK(
-      zeCommandQueueExecuteCommandLists,
-      (ZeCommandQueue, 1, &ZeCommandList, CommandList->second.ZeFence));
-  if (ZeResult != ZE_RESULT_SUCCESS) {
-    this->Healthy = false;
-    if (ZeResult == ZE_RESULT_ERROR_UNKNOWN) {
-      // Turn into a more informative end-user error.
-      return PI_COMMAND_EXECUTION_FAILURE;
->>>>>>> aee48a541b75... Adding lazy execution property to queue
     }
   }
 
@@ -1592,11 +1540,6 @@ uint32_t _pi_queue::pi_queue_group_t::getQueueIndex(uint32_t *QueueGroupOrdinal,
   *QueueIndex = ZeCommandQueueIndex;
 
   return CurrentIndex;
-}
-
-bool _pi_queue::isEagerExec() {
-  return false;
-  // (this->PiQueueProperties & (1<<5)) == 0)
 }
 
 // This function will return one of possibly multiple available native
